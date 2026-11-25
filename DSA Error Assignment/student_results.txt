@@ -1,0 +1,4 @@
+math 78
+English 55
+science 98
+social studies 67

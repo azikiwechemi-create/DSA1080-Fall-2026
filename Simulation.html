@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIR Disease Spread Contact Network Simulator</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --border: #334155; --text: #f8fafc;
+      --muted: #94a3b8; --s: #38bdf8; --i: #ef4444; --r: #22c55e; --v: #a855f7; --accent: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+    .container { max-width: 1160px; margin: 0 auto; }
+    header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.3rem; }
+    header p { color: var(--muted); font-size: 0.88rem; }
+    .controls { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+    button, select { background: #0f172a; color: var(--text); border: 1px solid var(--border); padding: 8px 13px; border-radius: 8px; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+    button:hover, select:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); }
+    button.hub-btn { border-color: var(--v); color: #e9d5ff; }
+    .slider-group { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; color: var(--muted); min-width: 160px; }
+    .slider-group strong { color: var(--text); }
+    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; font-weight: 700; }
+    .badge { background: #0f172a; border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; color: var(--muted); }
+    svg { width: 100%; background: #0b1120; border: 1px solid var(--border); border-radius: 10px; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.8rem; color: var(--muted); }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .stat-box { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: center; }
+    .stat-box .num { font-size: 1.2rem; font-weight: 800; }
+    .stat-box .lbl { font-size: 0.74rem; color: var(--muted); }
+    .inspector, .log-box { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: var(--muted); }
+    .inspector strong { color: var(--text); }
+    .log-box { font-family: monospace; font-size: 0.78rem; color: #cbd5e1; height: 130px; overflow-y: auto; }
+    .log-entry { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>SIR Disease Spread Contact Network Simulator</h1>
+      <p>Click any node to cycle state (S &rarr; V &rarr; I &rarr; R). Hover over a node to inspect degree and infection risk.</p>
+    </div>
+    <select id="presetSelect">
+      <option value="six">Preset: 6-Student Worked Example (A–F)</option>
+      <option value="school">Preset: 18-Student School Network</option>
+    </select>
+  </header>
+
+  <div class="controls">
+    <button id="stepBtn" class="primary">Step +1 Day</button>
+    <button id="autoBtn">Auto-Run</button>
+    <button id="resetBtn">Reset</button>
+    <button id="vaccinateHubBtn" class="hub-btn">Vaccinate Highest-Degree Hub</button>
+    <div class="slider-group">
+      <span>Transmission Multiplier: <strong id="txVal">1.0x</strong></span>
+      <input id="txSlider" type="range" min="0.2" max="2.0" step="0.1" value="1.0" />
+    </div>
+    <div class="slider-group">
+      <span>Recovery Rate (&gamma;): <strong id="gammaVal">0.25</strong></span>
+      <input id="gammaSlider" type="range" min="0.05" max="0.80" step="0.05" value="0.25" />
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-header">
+        <span>Weighted Contact Network G = (V, E)</span>
+        <span class="badge" id="dayBadge">Day 0</span>
+      </div>
+      <svg id="graphSvg" viewBox="0 0 640 390"></svg>
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:var(--s)"></span>Susceptible (S)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--i)"></span>Infected (I)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--r)"></span>Recovered (R)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--v)"></span>Vaccinated (V)</div>
+      </div>
+      <div class="inspector" id="inspectorBox">
+        <strong>Node Inspector:</strong> Hover over any student node to see degree (<em>k</em>), weighted degree (<em>s</em>), and daily infection risk.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>Epidemic Curve (SIR Population Counts)</span>
+        <span class="badge" id="statusBadge">Active Outbreak</span>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="num" id="countS" style="color:var(--s)">5</div><div class="lbl">Susceptible</div></div>
+        <div class="stat-box"><div class="num" id="countI" style="color:var(--i)">1</div><div class="lbl">Infected</div></div>
+        <div class="stat-box"><div class="num" id="countR" style="color:var(--r)">0</div><div class="lbl">Recovered</div></div>
+        <div class="stat-box"><div class="num" id="countV" style="color:var(--v)">0</div><div class="lbl">Vaccinated</div></div>
+      </div>
+      <svg id="chartSvg" viewBox="0 0 460 210"></svg>
+      <div class="card-header" style="font-size:0.84rem;"><span>Simulation Event Log</span></div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const COLORS = { S: "#38bdf8", I: "#ef4444", R: "#22c55e", V: "#a855f7" };
+  const STATE_CYCLE = ["S", "V", "I", "R"];
+  let nodes = [], edges = [], day = 0, history = [], activeTx = new Set(), timer = null;
+
+  const graphSvg = document.getElementById("graphSvg");
+  const chartSvg = document.getElementById("chartSvg");
+  const logBox = document.getElementById("logBox");
+  const inspectorBox = document.getElementById("inspectorBox");
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function loadPreset(name) {
+    stopAuto();
+    day = 0;
+    activeTx.clear();
+    if (name === "six") {
+      nodes = [
+        { id: "A", label: "A", role: "Patient Zero", x: 110, y: 105, state: "I" },
+        { id: "B", label: "B", role: "Secondary Contact", x: 110, y: 290, state: "S" },
+        { id: "C", label: "C", role: "Super-Spreader Hub", x: 295, y: 195, state: "S" },
+        { id: "D", label: "D", role: "Cluster Member", x: 455, y: 100, state: "S" },
+        { id: "E", label: "E", role: "Bridge Node", x: 455, y: 290, state: "S" },
+        { id: "F", label: "F", role: "Leaf Node", x: 580, y: 290, state: "S" }
+      ];
+      edges = [
+        { source: "A", target: "B", weight: 0.50, score: 7 },
+        { source: "A", target: "C", weight: 0.40, score: 6 },
+        { source: "B", target: "C", weight: 0.20, score: 3 },
+        { source: "C", target: "D", weight: 0.50, score: 7 },
+        { source: "C", target: "E", weight: 0.30, score: 5 },
+        { source: "D", target: "E", weight: 0.10, score: 2 },
+        { source: "E", target: "F", weight: 0.50, score: 7 }
+      ];
+    } else {
+      nodes = []; edges = [];
+      const centers = [{ cx: 145, cy: 125 }, { cx: 495, cy: 125 }, { cx: 320, cy: 295 }];
+      let idx = 1;
+      centers.forEach((c, cIdx) => {
+        const hubId = "S" + (idx++);
+        nodes.push({ id: hubId, label: hubId, role: "Class " + (cIdx + 1) + " Hub", x: c.cx, y: c.cy, state: cIdx === 0 ? "I" : "S" });
+        const ids = [hubId];
+        for (let i = 0; i < 5; i++) {
+          const ang = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+          const nid = "S" + (idx++);
+          nodes.push({ id: nid, label: nid, role: "Class " + (cIdx + 1) + " Student", x: Math.round(c.cx + 76 * Math.cos(ang)), y: Math.round(c.cy + 70 * Math.sin(ang)), state: "S" });
+          edges.push({ source: hubId, target: nid, weight: i % 2 === 0 ? 0.50 : 0.40, score: i % 2 === 0 ? 7 : 6 });
+          ids.push(nid);
+        }
+        edges.push({ source: ids[1], target: ids[2], weight: 0.30, score: 5 });
+        edges.push({ source: ids[3], target: ids[4], weight: 0.20, score: 3 });
+      });
+      edges.push({ source: "S3", target: "S11", weight: 0.10, score: 2 });
+      edges.push({ source: "S4", target: "S14", weight: 0.10, score: 2 });
+      edges.push({ source: "S10", target: "S15", weight: 0.10, score: 2 });
+    }
+    nodes.forEach(n => {
+      const inc = edges.filter(e => e.source === n.id || e.target === n.id);
+      n.degree = inc.length;
+      n.weightedDegree = inc.reduce((sum, e) => sum + e.weight, 0);
+    });
+    history = [getCounts()];
+    logBox.innerHTML = `<div class="log-entry"><strong>Day 0:</strong> Loaded ${nodes.length} nodes and ${edges.length} weighted edges.</div>`;
+    renderAll();
+  }
+
+  function getCounts() {
+    const c = { day: day, S: 0, I: 0, R: 0, V: 0 };
+    nodes.forEach(n => c[n.state]++);
+    return c;
+  }
+
+  function getRisk(node) {
+    if (node.state !== "S") return 0;
+    const mult = parseFloat(document.getElementById("txSlider").value);
+    let escape = 1;
+    edges.forEach(e => {
+      const oid = e.source === node.id ? e.target : e.target === node.id ? e.source : null;
+      const other = oid ? nodes.find(n => n.id === oid) : null;
+      if (other && other.state === "I") escape *= (1 - Math.min(1, e.weight * mult));
+    });
+    return 1 - escape;
+  }
+
+  function stepDay() {
+    if (getCounts().I === 0) { stopAuto(); return; }
+    const mult = parseFloat(document.getElementById("txSlider").value);
+    const gamma = parseFloat(document.getElementById("gammaSlider").value);
+    const next = {};
+    nodes.forEach(n => next[n.id] = n.state);
+    activeTx.clear();
+    const events = [];
+
+    nodes.forEach(u => {
+      if (u.state === "I") {
+        edges.forEach((e, idx) => {
+          const vid = e.source === u.id ? e.target : e.target === u.id ? e.source : null;
+          const v = vid ? nodes.find(n => n.id === vid) : null;
+          if (v && v.state === "S" && next[v.id] === "S") {
+            const p = Math.min(1, e.weight * mult);
+            if (Math.random() < p) {
+              next[v.id] = "I";
+              activeTx.add(idx);
+              events.push(`${u.label} infected ${v.label} (p=${p.toFixed(2)})`);
+            }
+          }
+        });
+        if (Math.random() < gamma) { next[u.id] = "R"; events.push(`${u.label} recovered`); }
+      }
+    });
+
+    nodes.forEach(n => n.state = next[n.id]);
+    day++;
+    history.push(getCounts());
+    logBox.innerHTML = `<div class="log-entry"><strong>Day ${day}:</strong> ${events.length ? events.join(" | ") : "No state changes."}</div>` + logBox.innerHTML;
+    renderAll();
+    if (getCounts().I === 0) stopAuto();
+  }
+
+  function renderAll() {
+    const c = getCounts();
+    document.getElementById("dayBadge").textContent = "Day " + day;
+    document.getElementById("countS").textContent = c.S;
+    document.getElementById("countI").textContent = c.I;
+    document.getElementById("countR").textContent = c.R;
+    document.getElementById("countV").textContent = c.V;
+
+    const sb = document.getElementById("statusBadge");
+    sb.textContent = c.I === 0 ? "Outbreak Ended (|I| = 0)" : "Active Outbreak";
+    sb.style.color = c.I === 0 ? "#22c55e" : "#ef4444";
+
+    // Render Graph
+    graphSvg.innerHTML = "";
+    edges.forEach((e, idx) => {
+      const u = nodes.find(n => n.id === e.source), v = nodes.find(n => n.id === e.target);
+      const hit = activeTx.has(idx);
+      graphSvg.appendChild(svgEl("line", {
+        x1: u.x, y1: u.y, x2: v.x, y2: v.y,
+        stroke: hit ? "#f97316" : "#64748b", "stroke-opacity": hit ? "0.95" : "0.55",
+        "stroke-width": Math.max(1.8, e.weight * 9)
+      }));
+      if (nodes.length <= 8) {
+        const mx = (u.x + v.x) / 2, my = (u.y + v.y) / 2;
+        graphSvg.appendChild(svgEl("rect", { x: mx - 34, y: my - 10, width: 68, height: 20, rx: 6, fill: "#0f172a", stroke: hit ? "#f97316" : "#334155" }));
+        const lbl = svgEl("text", { x: mx, y: my + 4, "text-anchor": "middle", fill: hit ? "#fdba74" : "#cbd5e1", "font-size": "11", "font-weight": "bold" });
+        lbl.textContent = `${e.weight.toFixed(2)} (w=${e.score})`;
+        graphSvg.appendChild(lbl);
+      }
+    });
+
+    nodes.forEach(n => {
+      const r = nodes.length <= 8 ? 17 + n.degree * 2.5 : 13 + n.degree * 1.4;
+      const g = svgEl("g", { style: "cursor:pointer;" });
+      g.appendChild(svgEl("circle", { cx: n.x, cy: n.y, r: r, fill: COLORS[n.state], "fill-opacity": "0.24", stroke: COLORS[n.state], "stroke-width": "2.8" }));
+      const txt = svgEl("text", { x: n.x, y: n.y + 4, "text-anchor": "middle", fill: "#f8fafc", "font-size": nodes.length <= 8 ? "13" : "10", "font-weight": "bold" });
+      txt.textContent = n.label;
+      g.appendChild(txt);
+      g.addEventListener("click", () => {
+        n.state = STATE_CYCLE[(STATE_CYCLE.indexOf(n.state) + 1) % STATE_CYCLE.length];
+        activeTx.clear();
+        history[history.length - 1] = getCounts();
+        renderAll();
+      });
+      g.addEventListener("mouseenter", () => {
+        inspectorBox.innerHTML = `<strong>Student ${n.label}</strong> (${n.role}) &mdash; State: <strong style="color:${COLORS[n.state]}">${n.state}</strong><br/>Degree (<em>k</em>): <strong>${n.degree}</strong> | Weighted Degree (<em>s</em>): <strong>${n.weightedDegree.toFixed(2)}</strong> | Daily Infection Risk: <strong>${(getRisk(n) * 100).toFixed(1)}%</strong>`;
+      });
+      graphSvg.appendChild(g);
+    });
+
+    // Render Chart
+    chartSvg.innerHTML = "";
+    const W = 460, H = 210, pL = 34, pR = 14, pT = 14, pB = 26, pW = W - pL - pR, pH = H - pT - pB;
+    const tot = nodes.length, maxD = Math.max(1, history[history.length - 1].day);
+    chartSvg.appendChild(svgEl("line", { x1: pL, y1: pT, x2: pL, y2: H - pB, stroke: "#475569" }));
+    chartSvg.appendChild(svgEl("line", { x1: pL, y1: H - pB, x2: W - pR, y2: H - pB, stroke: "#475569" }));
+    [0, Math.round(tot / 2), tot].forEach(v => {
+      const y = pT + pH - (v / tot) * pH;
+      const t = svgEl("text", { x: pL - 6, y: y + 4, "text-anchor": "end", fill: "#94a3b8", "font-size": "10" });
+      t.textContent = v;
+      chartSvg.appendChild(t);
+    });
+    ["S", "I", "R"].forEach(k => {
+      const pts = history.map(h => `${(pL + (h.day / maxD) * pW).toFixed(1)},${(pT + pH - (h[k] / tot) * pH).toFixed(1)}`).join(" ");
+      chartSvg.appendChild(svgEl("polyline", { fill: "none", stroke: COLORS[k], "stroke-width": "2.6", points: pts }));
+    });
+    const xLbl = svgEl("text", { x: W / 2, y: H - 6, "text-anchor": "middle", fill: "#94a3b8", "font-size": "11" });
+    xLbl.textContent = `Simulation Timeline (Days 0 to ${history[history.length - 1].day})`;
+    chartSvg.appendChild(xLbl);
+  }
+
+  function stopAuto() {
+    if (timer) { clearInterval(timer); timer = null; }
+    document.getElementById("autoBtn").textContent = "Auto-Run";
+  }
+
+  document.getElementById("stepBtn").addEventListener("click", stepDay);
+  document.getElementById("autoBtn").addEventListener("click", () => {
+    if (timer) { stopAuto(); return; }
+    document.getElementById("autoBtn").textContent = "Pause";
+    timer = setInterval(stepDay, 750);
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => loadPreset(document.getElementById("presetSelect").value));
+  document.getElementById("presetSelect").addEventListener("change", e => loadPreset(e.target.value));
+  document.getElementById("vaccinateHubBtn").addEventListener("click", () => {
+    const cands = nodes.filter(n => n.state === "S").sort((a, b) => b.degree - a.degree);
+    if (!cands.length) return;
+    cands[0].state = "V";
+    history[history.length - 1] = getCounts();
+    logBox.innerHTML = `<div class="log-entry"><strong>Intervention:</strong> Vaccinated hub <strong>${cands[0].label}</strong> (k=${cands[0].degree}).</div>` + logBox.innerHTML;
+    renderAll();
+  });
+  document.getElementById("txSlider").addEventListener("input", e => document.getElementById("txVal").textContent = parseFloat(e.target.value).toFixed(1) + "x");
+  document.getElementById("gammaSlider").addEventListener("input", e => document.getElementById("gammaVal").textContent = parseFloat(e.target.value).toFixed(2));
+
+  loadPreset("six");
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+StudentID,Name,Course,Age,Score,Attendance,StudyHours,City
+S001,Brian,IT,19,56,64,5,Kisumu
+S002,Cynthia,Business Analytics,20,69,73,8,Nakuru
+S003,David,Computer Science,21,82,82,11,Mombasa
+S004,Esther,Data Science,22,95,91,14,Eldoret
+S005,Faith,IT,23,53,100,17,
+S006,George,Business Analytics,24,66,63,3,Kisumu
+S007,Hassan,Computer Science,25,79,72,6,Nakuru
+S008,Ivy,Data Science,18,,81,9,Mombasa
+S009,James,IT,19,50,90,12,Eldoret
+S010,Kevin,Business Analytics,20,63,99,15,Nairobi
+S011,Lydia,Computer Science,21,76,62,18,Kisumu
+S012,Mary,Data Science,22,89,71,4,Nakuru
+S013,Noah,IT,23,47,80,7,Mombasa
+S014,Olivia,Business Analytics,24,60,89,10,Eldoret
+S015,Peter,Computer Science,25,73,98,13,Nairobi
+S016,Rita,Data Science,18,86,61,16,Kisumu
+S017,Samuel,IT,19,44,70,2,Nakuru
+S018,Tina,Business Analytics,20,57,79,5,Mombasa
+S019,Victor,Computer Science,21,70,88,8,Eldoret
+S020,Amina,Data Science,22,83,97,11,Nairobi
+S021,Brian,IT,23,96,60,14,Kisumu
+S022,Cynthia,Business Analytics,24,,69,17,Nakuru
+S023,David,Computer Science,25,67,78,3,Mombasa
+S024,Esther,Data Science,18,80,87,6,Eldoret
+S025,Faith,IT,19,93,96,9,Nairobi
+S026,George,Business Analytics,20,51,59,12,Kisumu
+S027,Hassan,Computer Science,21,64,68,15,
+S028,Ivy,Data Science,22,77,77,18,Mombasa
+S029,James,IT,23,90,86,4,Eldoret
+S030,Kevin,Business Analytics,24,48,95,7,Nairobi
+S031,Lydia,Computer Science,25,61,58,10,Kisumu
+S032,Mary,Data Science,18,74,67,13,Nakuru
+S033,Noah,IT,19,87,76,16,Mombasa
+S034,Olivia,Business Analytics,20,45,85,2,Eldoret
+S035,Peter,Computer Science,21,,94,5,Nairobi
+S036,Rita,Data Science,22,71,57,8,Kisumu
+S037,Samuel,IT,23,84,66,11,Nakuru
+S038,Tina,Business Analytics,24,97,75,14,Mombasa
+S039,Victor,Computer Science,25,55,84,17,Eldoret
+S040,Amina,Data Science,18,68,93,3,Nairobi
